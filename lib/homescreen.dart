@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import 'package:unemployementjournal/app_colors.dart';
 import 'package:unemployementjournal/dailynotes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unemployementjournal/models/daily_notes.dart';
 import 'package:unemployementjournal/widgets/buildweeklyitem.dart';
 
 class Homescreen extends StatefulWidget {
@@ -23,31 +25,38 @@ List<DateTime> generateRangeDates(int start, int end) {
   return dates;
 }
 
-Widget buildDateCell(DateTime date) {
+Widget buildDateCell(DateTime date, BuildContext context) {
   String dayNumber = DateFormat('dd').format(date);
   String dayName = DateFormat('E').format(date);
 
-  return Column(
-    mainAxisSize: MainAxisSize.min,
-
-    children: [
-      Text(
-        dayNumber,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w100,
-          fontFamily: 'AzeretMono',
+  return GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => Dailynotes(selectedDate: date)),
+      );
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          dayNumber,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w100,
+            fontFamily: 'AzeretMono',
+          ),
         ),
-      ),
-      Text(
-        dayName,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w100,
-          fontFamily: 'AzeretMono',
+        Text(
+          dayName,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w100,
+            fontFamily: 'AzeretMono',
+          ),
         ),
-      ),
-    ],
+      ],
+    ),
   );
 }
 
@@ -55,6 +64,42 @@ class _HomescreenState extends State<Homescreen> {
   bool studyDone = false;
   bool lookForJobDone = false;
   bool makeVideoDone = false;
+
+  final TextEditingController _controller = TextEditingController();
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> saveNote() async {
+    final box = Hive.box<DailyNotes>('daily_notes');
+
+    String today = DateTime.now().toIso8601String().split('T')[0];
+
+    final existingNote = box.get(today);
+
+    if (existingNote != null) {
+      existingNote.content = _controller.text;
+      await existingNote.save();
+    } else {
+      final newNote = DailyNotes(date: today, content: _controller.text);
+
+      await box.put(today, newNote);
+    }
+  }
+
+  void loadTodayNote() {
+    final box = Hive.box<DailyNotes>('daily_notes');
+
+    String today = DateTime.now().toIso8601String().split('T')[0];
+
+    final note = box.get(today);
+
+    if (note != null) {
+      _controller.text = note.content;
+    }
+  }
 
   Future<void> saveStudyStatus(bool value) async {
     final prefs = await SharedPreferences.getInstance();
@@ -93,43 +138,41 @@ class _HomescreenState extends State<Homescreen> {
     });
   }
 
-int weekNumber(DateTime date) {
-  final weekString = DateFormat("w").format(date);
-  return int.tryParse(weekString) ?? 0;
-}
+  int weekNumber(DateTime date) {
+    final weekString = DateFormat("w").format(date);
+    return int.tryParse(weekString) ?? 0;
+  }
 
-
-
- 
   @override
   void initState() {
     super.initState();
+    loadTodayNote();
     initData();
   }
 
-Future<void> initData() async {
-  final prefs = await SharedPreferences.getInstance();
+  Future<void> initData() async {
+    final prefs = await SharedPreferences.getInstance();
 
-  int currentWeek = weekNumber(DateTime.now());
-  int currentYear = DateTime.now().year;
+    int currentWeek = weekNumber(DateTime.now());
+    int currentYear = DateTime.now().year;
 
-  int savedWeek = prefs.getInt('savedWeek') ?? currentWeek;
-  int savedYear = prefs.getInt('savedYear') ?? currentYear;
-  if (savedWeek != currentWeek || savedYear != currentYear) {
-    await prefs.setBool('studyDone', false);
-    await prefs.setBool('lookForJobDone', false);
-    await prefs.setBool('makeVideoDone', false);
-    await prefs.setInt('savedWeek', currentWeek);
-    await prefs.setInt('savedYear', currentYear);
+    int savedWeek = prefs.getInt('savedWeek') ?? currentWeek;
+    int savedYear = prefs.getInt('savedYear') ?? currentYear;
+    if (savedWeek != currentWeek || savedYear != currentYear) {
+      await prefs.setBool('studyDone', false);
+      await prefs.setBool('lookForJobDone', false);
+      await prefs.setBool('makeVideoDone', false);
+      await prefs.setInt('savedWeek', currentWeek);
+      await prefs.setInt('savedYear', currentYear);
+    }
+
+    // print("Study before load: ${prefs.getBool('studyDone')}");
+    setState(() {
+      studyDone = prefs.getBool('studyDone') ?? false;
+      lookForJobDone = prefs.getBool('lookForJobDone') ?? false;
+      makeVideoDone = prefs.getBool('makeVideoDone') ?? false;
+    });
   }
-
-  // print("Study before load: ${prefs.getBool('studyDone')}");
-  setState(() {
-    studyDone = prefs.getBool('studyDone') ?? false;
-    lookForJobDone = prefs.getBool('lookForJobDone') ?? false;
-    makeVideoDone = prefs.getBool('makeVideoDone') ?? false;
-  });
-}
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +200,10 @@ Future<void> initData() async {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const Dailynotes()),
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          Dailynotes(selectedDate: DateTime.now()),
+                    ),
                   );
                 },
                 child: Container(
@@ -180,19 +226,17 @@ Future<void> initData() async {
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceEvenly,
-                                children: generateRangeDates(
-                                  -7,
-                                  -1,
-                                ).map((date) => buildDateCell(date)).toList(),
+                                children: generateRangeDates(-7, -1)
+                                    .map((date) => buildDateCell(date, context))
+                                    .toList(),
                               ),
                               const SizedBox(height: 8),
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceEvenly,
-                                children: generateRangeDates(
-                                  0,
-                                  6,
-                                ).map((date) => buildDateCell(date)).toList(),
+                                children: generateRangeDates(0, 6)
+                                    .map((date) => buildDateCell(date, context))
+                                    .toList(),
                               ),
                             ],
                           ),
@@ -240,10 +284,14 @@ Future<void> initData() async {
                       ),
                     ),
                     Expanded(
-                      child: const TextField(
+                      child: TextField(
+                        controller: _controller,
+                        onChanged: (value) {
+                          saveNote();
+                        },
                         maxLines: null,
                         expands: true,
-                        decoration: InputDecoration(
+                        decoration: const InputDecoration(
                           hintText: "Daily Notes goes here",
                           border: InputBorder.none,
                           hintStyle: TextStyle(
@@ -252,7 +300,7 @@ Future<void> initData() async {
                             fontFamily: 'AzeretMono',
                           ),
                         ),
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.black,
                           fontFamily: 'AzeretMono',
                           fontSize: 12,
@@ -277,31 +325,37 @@ Future<void> initData() async {
               ),
             ),
 
-            buildweeklyitem(title: "Study a concept", isDone: studyDone,
-             onTap: () {
-              setState(() {
-                studyDone = !studyDone;
-              });
-              saveStudyStatus(studyDone);
-             }
+            buildweeklyitem(
+              title: "Study a concept",
+              isDone: studyDone,
+              onTap: () {
+                setState(() {
+                  studyDone = !studyDone;
+                });
+                saveStudyStatus(studyDone);
+              },
             ),
 
-            buildweeklyitem(title: "Look for a J*b", isDone: lookForJobDone,
-             onTap: () {
-              setState(() {
-                lookForJobDone = !lookForJobDone;
-              });
-              saveLookForJobStatus(lookForJobDone);
-             }
+            buildweeklyitem(
+              title: "Look for a J*b",
+              isDone: lookForJobDone,
+              onTap: () {
+                setState(() {
+                  lookForJobDone = !lookForJobDone;
+                });
+                saveLookForJobStatus(lookForJobDone);
+              },
             ),
 
-            buildweeklyitem(title: "Make a YouTube video", isDone: makeVideoDone,
-             onTap: () {
-              setState(() {
-                makeVideoDone = !makeVideoDone;
-              });
-              saveMakeVideoStatus(makeVideoDone);
-             }
+            buildweeklyitem(
+              title: "Make a YouTube video",
+              isDone: makeVideoDone,
+              onTap: () {
+                setState(() {
+                  makeVideoDone = !makeVideoDone;
+                });
+                saveMakeVideoStatus(makeVideoDone);
+              },
             ),
           ],
         ),

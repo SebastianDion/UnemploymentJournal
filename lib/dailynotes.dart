@@ -1,16 +1,42 @@
 
 
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:intl/intl.dart';
 import 'package:unemployementjournal/app_colors.dart';
+import 'package:unemployementjournal/models/daily_notes.dart';
 
 class Dailynotes extends StatefulWidget {
-  const Dailynotes({super.key});
+  final DateTime selectedDate;
+
+  const Dailynotes({super.key, required this.selectedDate});
 
   @override
   State<Dailynotes> createState() => _DailynotesState();
 }
 
 class _DailynotesState extends State<Dailynotes> {
+  String noteContent = "";
+
+void loadNote() {
+  final box = Hive.box<DailyNotes>('daily_notes');
+
+  String dateKey = widget.selectedDate.toIso8601String().split('T')[0];
+
+  final note = box.get(dateKey);
+
+  if (note != null) {
+    setState(() {
+      noteContent = note.content;
+    });
+  }
+}
+
+@override
+void initState() {
+  super.initState();
+  loadNote();
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,7 +62,7 @@ class _DailynotesState extends State<Dailynotes> {
             child: Row(
               children: [
                 Text(
-                  "Wednesday,\n12th of June",
+                  DateFormat('EEEE,\ndd MMMM yyyy').format(widget.selectedDate),
                   style: TextStyle(
                     color: Colors.black,
                     fontFamily: 'AzeretMono',
@@ -49,22 +75,29 @@ class _DailynotesState extends State<Dailynotes> {
           ),
 
            Center(
-             child: Container(
-                  height: 150,
-                  width: 350.0,
-                  margin: const EdgeInsets.only(top: 20.0),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10.0),
-                    color: Colors.white,
-                  ),
-                  child: Center(
-                    child: Text(
-                      "Daily Notes goes here",
-                      style: TextStyle(color: Colors.black, fontSize: 12),
-                    ),
-                  ),
-                ),
-           ),
+  child: Container(
+    height: 150,
+    width: 350.0,
+    margin: const EdgeInsets.only(top: 20.0),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(10.0),
+      color: Colors.white,
+    ),
+    child: Center(
+      child: Text(
+        noteContent.isEmpty
+            ? "No note for this day"
+            : noteContent,
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 12,
+          fontFamily: 'AzeretMono',
+          fontWeight: FontWeight.w200,
+        ),
+      ),
+    ),
+  ),
+),
         ],
       ),
     );
