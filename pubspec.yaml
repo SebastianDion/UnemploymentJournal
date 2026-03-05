@@ -27,6 +27,8 @@ flutter:
       - asset: assets/fonts/AzeretMono-Bold.otf
         weight: 700
       - asset: assets/fonts/AzeretMono-Light.otf
+  assets:
+    - assets/icon/check.png
 
 flutter_launcher_icons:
   android: true

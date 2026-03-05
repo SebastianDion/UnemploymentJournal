@@ -48,10 +48,10 @@ Widget buildweeklyitem({
                   borderRadius: BorderRadius.circular(3.0),
                 ),
                 child:
-                 const Icon(
-                  Icons.check,
-                  color: Colors.green,
-                  size: 20,
+                 Image.asset(
+                  'assets/icon/check.png',
+                  width: 20,
+                  height: 20,
                 ),
               )
               : Container(
