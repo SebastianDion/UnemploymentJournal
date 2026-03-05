@@ -59,6 +59,7 @@ class _HomescreenState extends State<Homescreen> {
   Future<void> saveStudyStatus(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('studyDone', value);
+    // print("Saved study: $value");
   }
 
   Future<void> saveLookForJobStatus(bool value) async {
@@ -92,48 +93,43 @@ class _HomescreenState extends State<Homescreen> {
     });
   }
 
-  int weekNumber(DateTime date) {
-  return int.parse(DateFormat("w").format(date));
-  } 
-  
-
-  Future<void> checkWeeklyReset() async {
-  final prefs = await SharedPreferences.getInstance();
-
-  int currentWeek = weekNumber(DateTime.now());
-  int year = DateTime.now().year;
-  int? savedWeek = prefs.getInt('savedWeek');
-
-  int currentYear = DateTime.now().year;
-  int? savedYear = prefs.getInt('savedYear');
-
-if (savedWeek != currentWeek || savedYear != currentYear) {
-    await prefs.setBool('studyDone', false);
-    await prefs.setBool('lookForJobDone', false);
-    await prefs.setBool('makeVideoDone', false);
-    await prefs.setInt('savedWeek', currentWeek);
-    await prefs.setInt('savedYear', year);
-
-    setState(() {
-      studyDone = false;
-      lookForJobDone = false;
-      makeVideoDone = false;
-    });
-  }
+int weekNumber(DateTime date) {
+  final weekString = DateFormat("w").format(date);
+  return int.tryParse(weekString) ?? 0;
 }
 
+
+
+ 
   @override
   void initState() {
     super.initState();
     initData();
   }
 
-  Future<void> initData() async {
-    await checkWeeklyReset();
-    await loadStudyStatus();
-    await loadLookForJobStatus();
-    await loadMakeVideoStatus();
+Future<void> initData() async {
+  final prefs = await SharedPreferences.getInstance();
+
+  int currentWeek = weekNumber(DateTime.now());
+  int currentYear = DateTime.now().year;
+
+  int savedWeek = prefs.getInt('savedWeek') ?? currentWeek;
+  int savedYear = prefs.getInt('savedYear') ?? currentYear;
+  if (savedWeek != currentWeek || savedYear != currentYear) {
+    await prefs.setBool('studyDone', false);
+    await prefs.setBool('lookForJobDone', false);
+    await prefs.setBool('makeVideoDone', false);
+    await prefs.setInt('savedWeek', currentWeek);
+    await prefs.setInt('savedYear', currentYear);
   }
+
+  // print("Study before load: ${prefs.getBool('studyDone')}");
+  setState(() {
+    studyDone = prefs.getBool('studyDone') ?? false;
+    lookForJobDone = prefs.getBool('lookForJobDone') ?? false;
+    makeVideoDone = prefs.getBool('makeVideoDone') ?? false;
+  });
+}
 
   @override
   Widget build(BuildContext context) {
