@@ -25,36 +25,105 @@ List<DateTime> generateRangeDates(int start, int end) {
   return dates;
 }
 
+Widget buildMonth(DateTime month) {
+  DateTime firstDay = DateTime(month.year, month.month, 1);
+  int daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+
+  List<DateTime> days = List.generate(
+    daysInMonth,
+    (index) => DateTime(month.year, month.month, index + 1),
+  );
+
+  return Column(
+    children: [
+      const SizedBox(height: 8),
+      Text(
+        DateFormat('MMMM yyyy').format(month),
+        style: const TextStyle(
+          fontFamily: 'AzeretMono',
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      Expanded(
+        child: GridView.builder(
+          padding: const EdgeInsets.all(5),
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: days.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+          ),
+          itemBuilder: (context, index) {
+            return buildDateCell(days[index], context);
+          },
+        ),
+      ),
+    ],
+  );
+}
+
 Widget buildDateCell(DateTime date, BuildContext context) {
-  String dayNumber = DateFormat('dd').format(date);
-  String dayName = DateFormat('E').format(date);
+
+  DateTime today = DateTime.now();
+
+  bool isToday =
+      date.day == today.day &&
+      date.month == today.month &&
+      date.year == today.year;
+
+  String formattedDate =
+      date.toIso8601String().split('T')[0];
+
+  final box = Hive.box<DailyNotes>('daily_notes');
+
+  bool hasNote = box.containsKey(formattedDate);
+
+  String dayNumber = DateFormat('d').format(date);
 
   return GestureDetector(
     onTap: () {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => Dailynotes(selectedDate: date)),
+        MaterialPageRoute(
+          builder: (_) => Dailynotes(selectedDate: date),
+        ),
       );
     },
     child: Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
+
         Text(
           dayNumber,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w100,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
             fontFamily: 'AzeretMono',
+            color: isToday ? Colors.red : Colors.black,
           ),
         ),
-        Text(
-          dayName,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w100,
-            fontFamily: 'AzeretMono',
+
+        const SizedBox(height: 3),
+
+        if (isToday)
+          Container(
+            width: 5,
+            height: 5,
+            decoration: const BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+            ),
+          )
+
+        else if (hasNote)
+          Container(
+            width: 5,
+            height: 5,
+            decoration: const BoxDecoration(
+              color: Colors.green,
+              shape: BoxShape.circle,
+            ),
           ),
-        ),
       ],
     ),
   );
@@ -196,54 +265,26 @@ class _HomescreenState extends State<Homescreen> {
             ),
 
             Center(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          Dailynotes(selectedDate: DateTime.now()),
-                    ),
-                  );
-                },
-                child: Container(
-                  height: 150,
-                  width: 290.0,
-                  margin: const EdgeInsets.only(top: 20.0),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10.0),
-                    color: AppColors.calendarColor,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: generateRangeDates(-7, -1)
-                                    .map((date) => buildDateCell(date, context))
-                                    .toList(),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: generateRangeDates(0, 6)
-                                    .map((date) => buildDateCell(date, context))
-                                    .toList(),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+              child: Container(
+                height: 260,
+                width: 320,
+                margin: const EdgeInsets.only(top: 20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: AppColors.calendarColor,
+                ),
+                child: PageView.builder(
+                  controller: PageController(initialPage: 1000),
+                  itemBuilder: (context, index) {
+                    final now = DateTime.now();
+
+                    DateTime month = DateTime(
+                      now.year,
+                      now.month + (index - 1000),
+                    );
+
+                    return buildMonth(month);
+                  },
                 ),
               ),
             ),
@@ -347,15 +388,18 @@ class _HomescreenState extends State<Homescreen> {
               },
             ),
 
-            buildweeklyitem(
-              title: "Make a YouTube video",
-              isDone: makeVideoDone,
-              onTap: () {
-                setState(() {
-                  makeVideoDone = !makeVideoDone;
-                });
-                saveMakeVideoStatus(makeVideoDone);
-              },
+            Padding(
+              padding: const EdgeInsets.only(bottom: 30.0),
+              child: buildweeklyitem(
+                title: "Make a YouTube video",
+                isDone: makeVideoDone,
+                onTap: () {
+                  setState(() {
+                    makeVideoDone = !makeVideoDone;
+                  });
+                  saveMakeVideoStatus(makeVideoDone);
+                },
+              ),
             ),
           ],
         ),
